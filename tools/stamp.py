@@ -24,7 +24,8 @@ VERSION_JS = PUBLIC / "js" / "version.js"
 SKIP = {SW, VERSION_JS, PUBLIC / "_headers"}
 
 # Soubory, které nemusí být v precache (favicon.ico si prohlížeč stáhne sám).
-OPTIONAL = {"icons/favicon.ico"}
+# index.html je v precache jako './' (přímá adresa /index.html se na Cloudflare přesměrovává).
+OPTIONAL = {"icons/favicon.ico", "index.html"}
 
 
 def main() -> int:
@@ -33,9 +34,11 @@ def main() -> int:
     for p in files:
         h.update(p.relative_to(PUBLIC).as_posix().encode())
         h.update(p.read_bytes())
+    # I změna samotného sw.js musí změnit verzi (řádek s BUILD se do hashe nepočítá).
+    sw = SW.read_text(encoding="utf-8")
+    h.update(re.sub(r"const BUILD = '[^']*';", "", sw).encode())
     build = h.hexdigest()[:10]
 
-    sw = SW.read_text(encoding="utf-8")
     sw_new, n = re.subn(r"const BUILD = '[^']*';", f"const BUILD = '{build}';", sw)
     if n != 1:
         print("V sw.js nebyl nalezen řádek `const BUILD = '…';`", file=sys.stderr)

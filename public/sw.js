@@ -1,13 +1,14 @@
 // Service worker: všechno potřebné pro offline běh se stáhne při instalaci do cache.
 // BUILD mění skript tools/stamp.py (hash obsahu) – změna souboru = nová verze pro zařízení.
-const BUILD = 'e682516dc6';
+const BUILD = 'bf391eacad';
 const CACHE = 'jad-' + BUILD;
 
 const SQLJS = 'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/';
 
+// Pozor: 'index.html' sem nepatří – Cloudflare ho přesměruje na '/' a přesměrovanou odpověď
+// prohlížeč při navigaci odmítne (ERR_FAILED). App shell je './'.
 const PRECACHE = [
   './',
-  'index.html',
   'manifest.webmanifest',
   'css/app.css',
   'js/app.js',
@@ -40,6 +41,12 @@ const PRECACHE = [
   SQLJS + 'sql-wasm.wasm',
 ];
 
+/** Odpověď, která prošla přesměrováním, se nesmí vrátit navigaci – vytvoříme čistou kopii. */
+function unredirect(res) {
+  if (!res.redirected) return Promise.resolve(res);
+  return res.blob().then((body) => new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers }));
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) =>
@@ -48,7 +55,7 @@ self.addEventListener('install', (event) => {
           // cache: 'reload' obchází HTTP cache, ať se po nasazení opravdu stáhne nová verze.
           fetch(new Request(url, { cache: 'reload', mode: url.startsWith('http') ? 'cors' : 'same-origin' })).then((res) => {
             if (!res.ok) throw new Error('Precache selhal: ' + url + ' (' + res.status + ')');
-            return cache.put(url, res);
+            return unredirect(res).then((clean) => cache.put(url, clean));
           })
         )
       )
@@ -76,7 +83,12 @@ self.addEventListener('fetch', (event) => {
 
   // Navigace (otevření aplikace) → vždy app shell z cache.
   if (req.mode === 'navigate' && url.origin === self.location.origin) {
-    event.respondWith(caches.match('index.html', { ignoreSearch: true }).then((r) => r || fetch(req)));
+    event.respondWith(
+      caches
+        .match('./', { ignoreSearch: true })
+        .then((r) => r || fetch(req))
+        .then(unredirect)
+    );
     return;
   }
 
