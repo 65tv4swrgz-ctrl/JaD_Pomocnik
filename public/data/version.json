@@ -1,0 +1,12 @@
+{
+  "version": "c1578fedce7c",
+  "built": "2026-09-25T09:27:01Z",
+  "counts": {
+    "spells": 342,
+    "jad_items": 990,
+    "jad_monsters": 181,
+    "monster_spells": 184,
+    "jad_cr": 23,
+    "jad_encounter_strength": 226
+  }
+}

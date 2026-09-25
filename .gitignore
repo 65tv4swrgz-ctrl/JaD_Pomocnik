@@ -1,0 +1,9 @@
+# Záloha MySQL obsahuje uživatelské účty a hashe hesel – nikdy necommitovat.
+*.sql
+*.sql.gz
+
+public/data/*.tmp
+__pycache__/
+.claude/
+.DS_Store
+Thumbs.db
