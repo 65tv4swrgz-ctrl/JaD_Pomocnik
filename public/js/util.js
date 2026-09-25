@@ -218,6 +218,41 @@ export function numberDialog({ title, fields, okText = 'Uložit', hint = '' }) {
 }
 
 // ---------------------------------------------------------------------------
+// Číselné pole s tlačítky − / + (dotykové ovládání)
+
+/**
+ * attrs: HTML atributy pro <input> (např. 'data-new="level"'), value: výchozí hodnota,
+ * start: hodnota, na kterou skočí „+“/„−“ z prázdného pole.
+ */
+export function stepperHtml(attrs, value, { min = null, max = null, start = null, placeholder = '', label = '' } = {}) {
+  return `<span class="stepper">
+    <button class="btn btn-secondary btn-sm btn-icon" type="button" data-step="-1" aria-label="${esc(label)} −">−</button>
+    <input type="number" inputmode="numeric" ${attrs} value="${esc(value ?? '')}" placeholder="${esc(placeholder)}"
+      ${min !== null ? `min="${min}"` : ''} ${max !== null ? `max="${max}"` : ''} ${start !== null ? `data-start="${start}"` : ''} aria-label="${esc(label)}">
+    <button class="btn btn-secondary btn-sm btn-icon" type="button" data-step="1" aria-label="${esc(label)} +">+</button>
+  </span>`;
+}
+
+/** Jeden delegovaný posluchač pro všechny steppery uvnitř root. */
+export function bindSteppers(root) {
+  root.addEventListener('click', (e) => {
+    const b = e.target.closest('.stepper [data-step]');
+    if (!b) return;
+    const inp = b.closest('.stepper').querySelector('input');
+    const step = Number(b.dataset.step);
+    const min = inp.min !== '' ? Number(inp.min) : -Infinity;
+    const max = inp.max !== '' ? Number(inp.max) : Infinity;
+    const cur = parseInt(inp.value, 10);
+    let next;
+    if (Number.isFinite(cur)) next = cur + step;
+    else next = inp.dataset.start !== undefined ? Number(inp.dataset.start) : step > 0 ? Math.max(min, 1) : Math.max(min, 0);
+    inp.value = String(Math.max(min, Math.min(max, next)));
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+// ---------------------------------------------------------------------------
 
 export const BACK_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 0 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 7.5H14.5A.5.5 0 0 1 15 8z"/></svg>';

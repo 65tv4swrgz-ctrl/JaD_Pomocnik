@@ -1,12 +1,17 @@
 import { addMember, createParty, deleteMember, deleteParty, listParties, renameParty, restParty, updateMember } from '../store.js';
-import { confirmDialog, esc, toast } from '../util.js';
+import { bindSteppers, confirmDialog, esc, stepperHtml, toast } from '../util.js';
 
 const intOrNull = (v) => {
   const n = parseInt(String(v ?? '').trim(), 10);
   return Number.isFinite(n) ? n : null;
 };
 
-export function render(root) {
+export function render(host) {
+  // Vlastní obal – delegovaný posluchač stepperů nesmí viset na #app.
+  const root = document.createElement('div');
+  host.appendChild(root);
+  bindSteppers(root);
+
   const draw = () => {
     const parties = listParties();
     root.innerHTML = `
@@ -45,14 +50,14 @@ export function render(root) {
                 </tr>`
                 )
                 .join('')}
-              <tr class="add-row">
-                <td><input data-new="name" placeholder="Jméno nové postavy" maxlength="100"></td>
-                <td><input data-new="level" type="number" inputmode="numeric" min="1" max="20" value="1"></td>
-                <td colspan="2"><input data-new="bv_max" type="number" inputmode="numeric" placeholder="BV max (nepovinné)"></td>
-                <td><button class="btn btn-sm btn-icon" type="button" data-add-member aria-label="Přidat">+</button></td>
-              </tr>
             </tbody>
           </table></div>
+          <div class="add-member">
+            <label class="field" style="flex:1 1 220px">Nová postava<input data-new="name" placeholder="Jméno nové postavy" maxlength="100"></label>
+            <div class="field"><span>Úroveň</span>${stepperHtml('data-new="level"', 1, { min: 1, max: 20, label: 'Úroveň' })}</div>
+            <div class="field"><span>BV max (nepovinné)</span>${stepperHtml('data-new="bv_max"', '', { min: 0, start: 10, placeholder: '—', label: 'BV max' })}</div>
+            <button class="btn" type="button" data-add-member>Přidat postavu</button>
+          </div>
           ${
             p.members.length
               ? `<div class="small muted">Úroveň družiny (průměr): <strong>${Math.max(1, Math.min(20, Math.round(p.members.reduce((s, m) => s + m.level, 0) / p.members.length)))}</strong> · ${p.members.length} ${

@@ -32,7 +32,7 @@ export function render(root) {
   root.innerHTML = `
     <div class="page-head"><h1>Generátor střetnutí</h1><a class="btn btn-secondary btn-sm" href="#/encounters">Seznam střetnutí</a></div>
 
-    <div class="card">
+    <div class="card gen-sticky">
       <div class="grid grid-2">
         <label class="field">Název střetnutí<input id="g_name" maxlength="200" placeholder="Např. Přepadení na hrázi" value="${esc(d.name)}"></label>
         <div class="field">

@@ -31,7 +31,7 @@ import {
   syncPcHpFromParty,
   toggleEffect,
 } from '../store.js';
-import { d20, debounce, DICE_ICON, esc, isBlank, norm, openModal, confirmDialog, toast, BACK_ICON } from '../util.js';
+import { bindSteppers, d20, debounce, DICE_ICON, esc, isBlank, norm, openModal, confirmDialog, stepperHtml, toast, BACK_ICON } from '../util.js';
 import { mountLoot } from './loot.js';
 import { showMonsterModal, statblockHtml } from './monsters.js';
 
@@ -294,32 +294,58 @@ export function render(host, eid) {
   }
 
   function askInitiative(pcs, isTie) {
+    // Na začátku boje se kromě iniciativy potvrzují i aktuální BV (při shodě jen iniciativa).
+    const withHp = !isTie;
     const m = openModal({
-      title: isTie ? 'Shoda iniciativ' : 'Iniciativa hráčů',
+      title: isTie ? 'Shoda iniciativ' : 'Iniciativa a BV hráčů',
       dismissible: false,
       body: `<p class="muted" style="margin-top:0">${
         isTie
           ? 'Shoda iniciativ – protivníkům se přehodila automaticky, hrdinům zadej novou hodnotu.'
-          : 'Zadej iniciativu hrdinů (hod d20 + bonus). Po potvrzení se všichni seřadí.'
+          : 'Zadej iniciativu hrdinů (hod d20 + bonus) a zkontroluj jejich aktuální body výdrže. Po potvrzení se všichni seřadí.'
       }</p>
       <div class="grid">
         ${pcs
           .map(
-            (p, idx) => `<div class="row-gap" style="flex-wrap:nowrap">
-              <label class="field" style="flex:1">${esc(instanceLabel(p))}
-                <input type="number" inputmode="numeric" min="1" max="40" data-pc="${p.id}" value="${!isTie && p.initiative > 0 ? p.initiative : ''}" placeholder="d20+" ${idx === 0 ? 'autofocus' : ''}></label>
-              <button class="btn btn-secondary btn-icon" type="button" data-rnd="${p.id}" title="Hodit d20" style="align-self:end">${DICE_ICON}</button>
+            (p, idx) => `<div class="pc-init">
+              <div class="pc-init__name">${esc(instanceLabel(p))}</div>
+              <div class="pc-init__row">
+                <div class="field"><span>Iniciativa</span>
+                  <span class="row-gap" style="flex-wrap:nowrap">
+                    <input type="number" inputmode="numeric" min="1" max="40" data-pc="${p.id}" value="${!isTie && p.initiative > 0 ? p.initiative : ''}" placeholder="d20+" style="width:5.5em;text-align:center;font-weight:700" ${idx === 0 ? 'autofocus' : ''}>
+                    <button class="btn btn-secondary btn-icon" type="button" data-rnd="${p.id}" title="Hodit d20">${DICE_ICON}</button>
+                  </span>
+                </div>
+                ${
+                  withHp
+                    ? `<div class="field"><span>BV teď${p.hp_max != null ? ` (max ${p.hp_max})` : ''}</span>
+                        ${stepperHtml(`data-hp-pc="${p.id}"`, p.hp_current ?? '', { min: 0, max: p.hp_max ?? null, start: p.hp_max ?? 10, placeholder: '—', label: 'BV ' + instanceLabel(p) })}
+                      </div>`
+                    : ''
+                }
+              </div>
             </div>`
           )
           .join('')}
       </div>`,
-      foot: '<button class="btn" type="button" data-ok>Potvrdit iniciativu</button>',
+      foot: `<button class="btn" type="button" data-ok>${withHp ? 'Potvrdit iniciativu a BV' : 'Potvrdit iniciativu'}</button>`,
     });
+    bindSteppers(m.el);
     m.el.addEventListener('click', (e) => {
       const r = e.target.closest('[data-rnd]');
       if (r) m.el.querySelector(`[data-pc="${r.dataset.rnd}"]`).value = d20();
     });
     m.el.querySelector('[data-ok]').addEventListener('click', () => {
+      if (withHp) {
+        m.el.querySelectorAll('[data-hp-pc]').forEach((inp) => {
+          const v = parseInt(inp.value, 10);
+          if (!Number.isFinite(v)) return;
+          const p = getInstance(eid, Number(inp.dataset.hpPc));
+          if (!p) return;
+          // Když postava ještě nemá maximum, první zadaná hodnota ho nastaví.
+          if (v !== p.hp_current || p.hp_max == null) setHp(eid, p.id, v, p.hp_max ?? v);
+        });
+      }
       const map = {};
       m.el.querySelectorAll('[data-pc]').forEach((inp) => (map[inp.dataset.pc] = inp.value));
       const pending = setPcInitiatives(eid, map);
@@ -387,10 +413,31 @@ export function render(host, eid) {
 
   function applyHp(iid, cur, max) {
     const before = getInstance(eid, iid);
+    const alive = livingEnemies();
     const r = setHp(eid, iid, cur, max);
     if (r && r.is_defeated && !before.is_defeated) toast(instanceLabel(before) + ' je vyřazen.', 'warn');
     updateCard(iid);
     drawOverview();
+    askEndIfNoEnemies(alive);
+  }
+
+  // -------------------------------------------------------------------------
+  // Konec boje
+
+  const livingEnemies = () => listInstances(eid).filter((i) => !isPc(i) && !i.is_defeated).length;
+
+  function finishCombat() {
+    endCombat(eid);
+    toast('Boj ukončen.');
+    fullRender({ resort: false });
+  }
+
+  /** Když právě padl poslední protivník (zbyli jen hrdinové), nabídne konec boje. */
+  async function askEndIfNoEnemies(aliveBefore) {
+    if (aliveBefore === 0 || livingEnemies() > 0 || ended()) return;
+    if (await confirmDialog('Ve střetnutí už nejsou žádní protivníci. Je konec boje? Po ukončení bude střetnutí jen pro čtení.', { title: 'Konec boje?', okText: 'Ukončit boj', danger: true })) {
+      finishCombat();
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -496,9 +543,7 @@ export function render(host, eid) {
       }
       case 'end':
         if (!(await confirmDialog('Opravdu ukončit boj? Po ukončení bude střetnutí jen pro čtení.', { okText: 'Ukončit boj', danger: true }))) return;
-        endCombat(eid);
-        toast('Boj ukončen.');
-        fullRender({ resort: false });
+        finishCombat();
         break;
       case 'reopen':
         reopenCombat(eid);
@@ -597,7 +642,12 @@ export function render(host, eid) {
     const def = e.target.closest('[data-defeat]');
     if (def) {
       if (def.checked) {
+        const alive = livingEnemies();
         setDefeated(eid, iid, true);
+        updateCard(iid);
+        drawOverview();
+        askEndIfNoEnemies(alive);
+        return;
       } else {
         if (!(await confirmDialog('Opravdu oživit tohoto účastníka? Obnoví se mu 1 bod výdrže.', { okText: 'Oživit' }))) {
           def.checked = true;

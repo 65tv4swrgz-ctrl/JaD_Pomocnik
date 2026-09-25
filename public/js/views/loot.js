@@ -41,7 +41,7 @@ export function mountLoot(container, eid, { readOnly = false } = {}) {
             </div>
             ${
               readOnly
-                ? `<span class="badge">${g.qty}×</span>`
+                ? `<span class="badge badge--qty">${g.qty}×</span>`
                 : `<div class="qty">
                     <button class="btn btn-secondary btn-sm btn-icon" type="button" data-dec aria-label="Ubrat">−</button>
                     <span class="qty__val">${g.qty}</span>
@@ -74,7 +74,7 @@ export function mountLoot(container, eid, { readOnly = false } = {}) {
               .map(
                 (g) => `<div class="loot-row" data-key="${esc(g.ids.join(','))}" style="grid-template-columns:1fr auto">
                   <div>
-                    <span class="loot-row__name">${esc(g.name)}</span> <span class="badge">${g.qty}×</span>
+                    <span class="loot-row__name">${esc(g.name)}</span> <span class="badge badge--qty">${g.qty}×</span>
                     <div class="loot-row__meta">→ <strong>${esc(g.given_to)}</strong>${g.note ? ' · ' + esc(g.note) : ''}</div>
                   </div>
                   ${readOnly ? '' : '<button class="btn btn-secondary btn-sm" type="button" data-ungive>Vrátit</button>'}
@@ -90,7 +90,7 @@ export function mountLoot(container, eid, { readOnly = false } = {}) {
           : `<hr class="sep">
             <div class="row-between"><strong>Přidat předmět</strong>
               <button class="btn btn-ghost btn-sm" type="button" data-custom>Vlastní předmět…</button></div>
-            <input type="search" data-search placeholder="Začni psát název předmětu (od 2 znaků)…" autocomplete="off" style="margin-top:8px">
+            <input type="search" data-search placeholder="Začni psát název předmětu (od 2 znaků), klepnutím na řádek ho přidáš…" autocomplete="off" style="margin-top:8px">
             <div class="pick-list" data-results style="margin-top:8px;max-height:260px"></div>`
       }`;
 
@@ -150,8 +150,15 @@ export function mountLoot(container, eid, { readOnly = false } = {}) {
     const res = t.closest('[data-add-item]');
     if (res) {
       addLootItem(eid, Number(res.dataset.addItem));
-      toast('Přidáno do lootu.');
+      toast('Přidáno do lootu: ' + (res.querySelector('.pick-item__name')?.textContent ?? ''));
+      // Hledání zůstane, ať jde klepnutím přidat víc předmětů za sebou.
+      const q = container.querySelector('[data-search]')?.value ?? '';
       draw();
+      const inp = container.querySelector('[data-search]');
+      if (inp && q) {
+        inp.value = q;
+        runSearch(inp);
+      }
     }
   });
 
@@ -161,7 +168,7 @@ export function mountLoot(container, eid, { readOnly = false } = {}) {
     if (inp) setLootNote(eid, groupIds(inp), inp.value);
   });
 
-  const search = debounce((inp) => {
+  function runSearch(inp) {
     const box = container.querySelector('[data-results]');
     const q = norm(inp.value);
     if (q.length < 2) {
@@ -176,13 +183,14 @@ export function mountLoot(container, eid, { readOnly = false } = {}) {
     box.innerHTML = hits.length
       ? hits
           .map(
-            (it) => `<div class="pick-item"><div class="pick-item__main"><div class="pick-item__name">${esc(it.jmeno)}</div>
-              <div class="pick-item__meta">${esc([it.vzacnost, it.kategorie].filter(Boolean).join(' · '))}</div></div>
-              <button class="btn btn-sm" type="button" data-add-item="${it.id}">Přidat</button></div>`
+            (it) => `<button type="button" class="pick-item pick-item--tap" data-add-item="${it.id}"><span class="pick-item__main"><span class="pick-item__name">${esc(it.jmeno)}</span>
+              <span class="pick-item__meta">${esc([it.vzacnost, it.kategorie].filter(Boolean).join(' · '))}</span></span>
+              <span class="pick-item__plus" aria-hidden="true">+</span></button>`
           )
           .join('')
       : '<div class="empty">Nic nenalezeno.</div>';
-  }, 150);
+  }
+  const search = debounce(runSearch, 150);
   container.addEventListener('input', (e) => {
     const inp = e.target.closest('[data-search]');
     if (inp) search(inp);
