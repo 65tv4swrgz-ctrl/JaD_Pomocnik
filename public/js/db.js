@@ -133,6 +133,51 @@ const USER_MIGRATIONS = [
   );
   CREATE INDEX idx_el_enc ON encounter_loot(encounter_id);
   `,
+  // v2 – hráčské postavy (deník). JSON sloupce: seznamy zdatností, pozice kouzel/truhly.
+  `
+  CREATE TABLE characters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    jmeno TEXT NOT NULL,
+    rasa TEXT, povolani TEXT, specializace TEXT, zazemi TEXT, presvedceni TEXT,
+    uroven INTEGER NOT NULL DEFAULT 1,
+    sila INTEGER NOT NULL DEFAULT 10, obratnost INTEGER NOT NULL DEFAULT 10, odolnost INTEGER NOT NULL DEFAULT 10,
+    inteligence INTEGER NOT NULL DEFAULT 10, moudrost INTEGER NOT NULL DEFAULT 10, charisma INTEGER NOT NULL DEFAULT 10,
+    zd_dovednosti TEXT NOT NULL DEFAULT '[]', kv_dovednosti TEXT NOT NULL DEFAULT '[]',
+    zd_zachranne_hody TEXT NOT NULL DEFAULT '[]', kv_zachranne_hody TEXT NOT NULL DEFAULT '[]',
+    zd_pasivni_dovednosti TEXT NOT NULL DEFAULT '[]', kv_pasivni_dovednosti TEXT NOT NULL DEFAULT '[]',
+    zd_pomucky TEXT NOT NULL DEFAULT '[]', kv_pomucky TEXT NOT NULL DEFAULT '[]',
+    zd_zbrane TEXT NOT NULL DEFAULT '{"vyber":[],"jednoduche":0,"valecne":0}',
+    zd_zbroje TEXT NOT NULL DEFAULT '{"lehke":0,"stredni":0,"tezke":0}',
+    zd_stity INTEGER NOT NULL DEFAULT 0,
+    zdatnostni_bonus INTEGER NOT NULL DEFAULT 2,
+    inspirace INTEGER NOT NULL DEFAULT 0,
+    rychlost INTEGER,
+    bv_max INTEGER, bv_ted INTEGER,
+    kostka_obnovy TEXT, pocet_kostek_obnovy INTEGER NOT NULL DEFAULT 1,
+    sesilaci_vlastnost TEXT, bojova_vlastnost TEXT,
+    schopnosti TEXT NOT NULL DEFAULT '', vzhled TEXT NOT NULL DEFAULT '', vztahy TEXT NOT NULL DEFAULT '', poznamka TEXT NOT NULL DEFAULT '',
+    pripravena_kouzla TEXT NOT NULL DEFAULT '{}', pouzita_kouzla TEXT NOT NULL DEFAULT '{}',
+    dostupna_truhla TEXT NOT NULL DEFAULT '[]', pouzita_truhla TEXT NOT NULL DEFAULT '[]',
+    mesec_zl INTEGER NOT NULL DEFAULT 0, mesec_st INTEGER NOT NULL DEFAULT 0, mesec_md INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  );
+  CREATE TABLE character_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    character_id INTEGER NOT NULL,
+    item_id INTEGER NOT NULL,
+    mnozstvi INTEGER NOT NULL DEFAULT 1,
+    equipped INTEGER NOT NULL DEFAULT 0,
+    poznamka TEXT NOT NULL DEFAULT '',
+    UNIQUE (character_id, item_id)
+  );
+  CREATE TABLE character_spells (
+    character_id INTEGER NOT NULL,
+    spell_id INTEGER NOT NULL,
+    prepared INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (character_id, spell_id)
+  );
+  `,
 ];
 
 function migrate(db) {

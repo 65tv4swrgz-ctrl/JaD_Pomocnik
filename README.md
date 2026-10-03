@@ -6,7 +6,9 @@ Offline verze herního pomocníka pro **Jeskyně a draci**, určená hlavně pro
 - **Generátor střetnutí** – výpočet síly podle JaD tabulky, boss, režimy lootu.
 - **Vedení boje** – iniciativa (včetně řešení shod), tahy a kola, body výdrže, stavy s odpočtem,
   přidávání protivníků za běhu, loot a jeho předávání, poznámky.
-- **Družiny** – postavy s úrovní a BV (BV se během boje zapisují zpět).
+- **Družiny** – hrdinové pro střetnutí s úrovní a BV (BV se během boje zapisují zpět).
+- **Postavy** – deník hráčské postavy (vlastnosti a zdatnosti, bojová výbava, kouzla s pozicemi a truhlou,
+  inventář s měšcem, nová úroveň). S družinami ani střetnutími propojené nejsou.
 
 Běží čistě ve prohlížeči: statické soubory + [sql.js](https://sql.js.org) (SQLite ve WebAssembly).
 Žádný server ani build krok.
@@ -77,5 +79,9 @@ pro test offline režimu otevři `http://localhost:8765/?sw=1`.
   mohl nabízet už od 5. úrovně). Offline verze je řadí správně (od 11. úrovně).
 - Vyřazený účastník, který byl právě na tahu: „Další tah“ pokračuje dalším v pořadí (web skočil na začátek
   a přičetl kolo).
-- Předání lootu postavě jen zaznamená, komu předmět připadl (offline verze nemá inventáře postav).
+- Předání lootu jen zaznamená, komu předmět připadl (postavy nejsou se střetnutím propojené).
+- Deník postavy: kontrola Síly u zbroje a „jen jedna vybavená zbroj / jeden štít“ ve webové verzi nefungovala
+  (dotaz na neexistující sloupec `category`); offline verze ji uplatňuje. Těžké zbroje mají v datech překlep
+  „Ťěžká“ – rozpoznávají se bez diakritiky, takže blokace kouzel ve zbroji bez zdatnosti funguje i pro ně.
+- Navíc oproti webu: odebrání kouzla z postavy, „Odpočinek“ (uvolní pozice kouzel a truhly), ruční úprava BV.
 - sql.js se načítá z jsDelivr a při instalaci se uloží do cache service workeru.

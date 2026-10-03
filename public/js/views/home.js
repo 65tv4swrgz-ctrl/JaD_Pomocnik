@@ -24,7 +24,8 @@ export function render(root) {
     <div class="tiles">
       <a class="tile" href="#/generate"><span class="tile__title">Nové střetnutí</span><span class="tile__desc">Generátor s výpočtem síly a lootem</span></a>
       <a class="tile" href="#/encounters"><span class="tile__title">Střetnutí</span><span class="tile__desc">Připravená, probíhající i ukončená</span></a>
-      <a class="tile" href="#/parties"><span class="tile__title">Družiny</span><span class="tile__desc">Postavy, úrovně a body výdrže</span></a>
+      <a class="tile" href="#/characters"><span class="tile__title">Postavy</span><span class="tile__desc">Deníky hráčských postav</span></a>
+      <a class="tile" href="#/parties"><span class="tile__title">Družiny</span><span class="tile__desc">Hrdinové pro střetnutí, úrovně a BV</span></a>
       <a class="tile" href="#/monsters"><span class="tile__title">Protivníci</span><span class="tile__desc">${c.monsters.length} v bestiáři</span></a>
       <a class="tile" href="#/items"><span class="tile__title">Předměty</span><span class="tile__desc">${c.items.length} předmětů</span></a>
       <a class="tile" href="#/spells"><span class="tile__title">Kouzla</span><span class="tile__desc">${c.spells.length} kouzel</span></a>

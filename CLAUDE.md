@@ -14,6 +14,8 @@ příručka (protivníci, předměty, kouzla) + generátor a vedení střetnutí
 - Uživatelská data (družiny, střetnutí) = druhá sql.js DB v IndexedDB; schéma a migrace v `js/db.js`
   (`USER_MIGRATIONS`, `PRAGMA user_version`) – nové změny schématu vždy jako nová migrace, nikdy neupravovat staré.
 - Pravidla (síla, XP, HP bosse, loot) v `js/rules.js` odpovídají `EncounterService`/`EncounterRepository` z PHP;
-  operace nad DB v `js/store.js`. Názvy sloupců do SQL nikdy nesestavovat z uživatelského vstupu (whitelist).
+  operace nad DB v `js/store.js`. Postavy: číselníky a výpočty `js/charrules.js`, DB `js/charstore.js`
+  (port `CharacterService`/`CharacterRepository`); postavy záměrně nejsou propojené s družinami/střetnutími.
+- Pohledy, které věší delegované posluchače, si vytvoří vlastní obal uvnitř `#app` (ten přežívá přechody). Názvy sloupců do SQL nikdy nesestavovat z uživatelského vstupu (whitelist).
 - Na `localhost` je service worker vypnutý; offline test přes `?sw=1`.
 - Na tomto PC je Python dostupný jako `py` (ne `python`).

@@ -12,6 +12,8 @@ import * as encounters from './views/encounters.js';
 import * as encounter from './views/encounter.js';
 import * as play from './views/play.js';
 import * as settings from './views/settings.js';
+import * as characters from './views/characters.js';
+import * as character from './views/character.js';
 
 const ROUTES = [
   [/^$/, home.render, ''],
@@ -21,6 +23,8 @@ const ROUTES = [
   [/^item\/(\d+)$/, items.renderDetail, 'item'],
   [/^spells$/, spells.renderList, 'spell'],
   [/^spell\/(\d+)$/, spells.renderDetail, 'spell'],
+  [/^characters$/, characters.render, 'character'],
+  [/^character\/(\d+)$/, character.render, 'character'],
   [/^parties$/, parties.render, 'part'],
   [/^generate$/, generate.render, 'encounter'],
   [/^encounters$/, encounters.render, 'encounter'],

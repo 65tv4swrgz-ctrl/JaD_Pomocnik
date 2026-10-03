@@ -1,6 +1,6 @@
 // Service worker: všechno potřebné pro offline běh se stáhne při instalaci do cache.
 // BUILD mění skript tools/stamp.py (hash obsahu) – změna souboru = nová verze pro zařízení.
-const BUILD = '04c3f8f9ad';
+const BUILD = '292ef6de95';
 const CACHE = 'jad-' + BUILD;
 
 const SQLJS = 'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/';
@@ -13,11 +13,15 @@ const PRECACHE = [
   'css/app.css',
   'js/app.js',
   'js/catalog.js',
+  'js/charrules.js',
+  'js/charstore.js',
   'js/db.js',
   'js/rules.js',
   'js/store.js',
   'js/util.js',
   'js/version.js',
+  'js/views/character.js',
+  'js/views/characters.js',
   'js/views/encounter.js',
   'js/views/encounters.js',
   'js/views/generate.js',
@@ -37,6 +41,9 @@ const PRECACHE = [
   'icons/android-chrome-512x512.png',
   'icons/favicon-32x32.png',
   'icons/favicon-16x16.png',
+  'icons/zl_mince.png',
+  'icons/st_mince.png',
+  'icons/md_mince.png',
   SQLJS + 'sql-wasm.js',
   SQLJS + 'sql-wasm.wasm',
 ];

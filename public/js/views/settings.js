@@ -9,6 +9,7 @@ export function render(root) {
     parties: user.value('SELECT COUNT(*) FROM parties'),
     members: user.value('SELECT COUNT(*) FROM party_members'),
     encounters: user.value('SELECT COUNT(*) FROM encounters'),
+    characters: user.value('SELECT COUNT(*) FROM characters'),
   };
   const dv = dataVersion || {};
 
@@ -20,6 +21,7 @@ export function render(root) {
       <p class="muted small" style="margin-top:0">Družiny a střetnutí jsou uložené jen v tomto zařízení (v prohlížeči). Občas si udělej zálohu –
         smazáním aplikace nebo dat Safari by se ztratila.</p>
       <div class="kv"><div class="kv__k">Družiny</div><div class="kv__v">${counts.parties} (${counts.members} postav)</div></div>
+      <div class="kv"><div class="kv__k">Postavy</div><div class="kv__v">${counts.characters}</div></div>
       <div class="kv"><div class="kv__k">Střetnutí</div><div class="kv__v">${counts.encounters}</div></div>
       <div class="kv"><div class="kv__k">Trvalé úložiště</div><div class="kv__v" id="st_persist">…</div></div>
       <div class="kv"><div class="kv__k">Využito místa</div><div class="kv__v" id="st_usage">…</div></div>
