@@ -62,6 +62,11 @@ Na iPadu se nová verze projeví lištou „Je k dispozici nová verze → Aktua
 2. *Sdílet → Přidat na plochu*.
 3. Spouštěj z ikony. Data v ikoně a v Safari jsou oddělená – střetnutí zakládej v nainstalované aplikaci.
 
+Android: Chrome → menu ⋮ → *Nainstalovat aplikaci* (data jsou společná s prohlížečem).
+PC: Chrome/Edge → ikona instalace v adresním řádku; funguje i bez instalace. Úvodní stránka ukazuje návod podle
+zařízení a v Chromu/Edgi i tlačítko „Nainstalovat aplikaci“. Data se mezi zařízeními nesynchronizují – přenos přes
+stránku Data (záloha / obnova).
+
 ## Lokální vývoj
 
 ```bash

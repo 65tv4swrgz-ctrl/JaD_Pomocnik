@@ -265,6 +265,19 @@ export function backButton(fallbackHash) {
   return `<button type="button" class="btn btn-secondary btn-sm btn-icon" aria-label="Zpět" data-back="${esc(fallbackHash)}">${BACK_ICON}</button>`;
 }
 
+/** Nabídka instalace (Chrome/Edge – událost beforeinstallprompt), zachycená v app.js. */
+export const installState = { prompt: null };
+
+/** Druh zařízení pro návod k instalaci. iPadOS se hlásí jako Mac – pozná se podle dotyku. */
+export function platform() {
+  const ua = navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+  if (/Android/i.test(ua)) return 'android';
+  return 'desktop';
+}
+
+export const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
 /** Počet navigací uvnitř aplikace (router ho zvyšuje) – když je 1, není kam „zpět“. */
 export const navState = { count: 0 };
 

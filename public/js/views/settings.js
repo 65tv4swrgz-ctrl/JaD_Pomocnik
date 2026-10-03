@@ -19,7 +19,7 @@ export function render(root) {
     <div class="card">
       <h2>Moje data</h2>
       <p class="muted small" style="margin-top:0">Družiny a střetnutí jsou uložené jen v tomto zařízení (v prohlížeči). Občas si udělej zálohu –
-        smazáním aplikace nebo dat Safari by se ztratila.</p>
+        smazáním aplikace nebo dat prohlížeče by se ztratila.</p>
       <div class="kv"><div class="kv__k">Družiny</div><div class="kv__v">${counts.parties} (${counts.members} postav)</div></div>
       <div class="kv"><div class="kv__k">Postavy</div><div class="kv__v">${counts.characters}</div></div>
       <div class="kv"><div class="kv__k">Střetnutí</div><div class="kv__v">${counts.encounters}</div></div>

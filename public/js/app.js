@@ -1,7 +1,7 @@
 // Vstupní bod: inicializace DB, service workeru a hash routeru.
 
 import { initDatabases } from './db.js';
-import { closeAllModals, esc, navState } from './util.js';
+import { closeAllModals, esc, installState, navState } from './util.js';
 import * as home from './views/home.js';
 import * as monsters from './views/monsters.js';
 import * as items from './views/items.js';
@@ -35,6 +35,7 @@ const ROUTES = [
 
 const app = document.getElementById('app');
 let cleanup = null;
+let booted = false;
 
 function route() {
   const path = location.hash.replace(/^#\/?/, '').replace(/\/$/, '');
@@ -64,6 +65,17 @@ function route() {
   window.scrollTo(0, 0);
   document.querySelector('[data-nav]')?.classList.remove('is-open');
 }
+
+// Nabídka instalace (Chrome/Edge) přichází hned po startu – schováme si ji pro tlačítko na úvodní stránce.
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installState.prompt = e;
+  // Úvodní stránku překreslíme jen po načtení databáze (událost může přijít dřív).
+  if (booted && location.hash.replace(/^#\/?/, '') === '') route();
+});
+window.addEventListener('appinstalled', () => {
+  installState.prompt = null;
+});
 
 // Mobilní menu
 document.querySelector('[data-nav-toggle]')?.addEventListener('click', (e) => {
@@ -127,11 +139,12 @@ async function boot() {
   } catch (e) {
     console.error(e);
     app.innerHTML = `<div class="card alert--danger"><h2>Aplikaci se nepodařilo spustit</h2><p>${esc(e.message || e)}</p>
-      <p class="small muted">Při úplně prvním spuštění musí být iPad připojený k internetu, aby si aplikace stáhla databázi a knihovnu sql.js. Pak už funguje offline.</p>
+      <p class="small muted">Při úplně prvním spuštění musí být zařízení připojené k internetu, aby si aplikace stáhla databázi a knihovnu sql.js. Pak už funguje offline.</p>
       <button class="btn" onclick="location.reload()">Zkusit znovu</button></div>`;
     return;
   }
   window.addEventListener('hashchange', route);
+  booted = true;
   route();
 }
 
