@@ -1,6 +1,6 @@
 // Service worker: všechno potřebné pro offline běh se stáhne při instalaci do cache.
 // BUILD mění skript tools/stamp.py (hash obsahu) – změna souboru = nová verze pro zařízení.
-const BUILD = 'dd7aafe4b2';
+const BUILD = 'b9f727e060';
 const CACHE = 'jad-' + BUILD;
 
 const SQLJS = 'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/';

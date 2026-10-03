@@ -215,7 +215,7 @@ export function render(host, id) {
 
     const w = c.zd_zbrane;
     const a = c.zd_zbroje;
-    return `<p class="small muted">Klepnutím na řádek se přepíná: bez zdatnosti → zdatnost (★) → kvalifikace (dvojnásobný bonus). Zdatnostní bonus: <strong>${signed(prof)}</strong></p>
+    return `<p class="small muted">Klepnutím na řádek se přepíná: bez zdatnosti → zdatnost (☆) → kvalifikace (★, dvojnásobný bonus). Zdatnostní bonus: <strong>${signed(prof)}</strong></p>
       <div class="ability-grid">${cards}</div>
       <div class="prof-cards">
         <div class="ability"><div class="ability__name">Záchranné hody</div><div class="skills">${saves}</div></div>

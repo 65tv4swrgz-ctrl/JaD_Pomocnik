@@ -239,9 +239,10 @@ textarea.autosize{overflow:hidden;resize:none}
 .skill{display:flex;align-items:center;gap:8px;width:100%;min-height:var(--tap);padding:6px 10px;border-radius:10px;border:1px solid var(--faint);background:rgba(0,0,0,.18);color:var(--text);font:inherit;font-size:15px;text-align:left;cursor:pointer;touch-action:manipulation}
 .skill:hover{border-color:rgba(215,162,74,.4)}
 .skill__star{display:inline-flex;flex:0 0 auto}
-.skill__star svg{fill:none;stroke:rgba(255,255,255,.35);stroke-width:1.6}
-.skill[data-state="1"] .skill__star svg{fill:var(--accent);stroke:var(--accent)}
-.skill[data-state="2"] .skill__star svg{fill:#ffd36b;stroke:#fff3c4;filter:drop-shadow(0 0 4px rgba(255,211,107,.7))}
+/* Bez zdatnosti hvězdička není vidět (místo zůstává), zdatnost = obrys, kvalifikace = vyplněná */
+.skill__star svg{fill:none;stroke:var(--accent);stroke-width:1.8;visibility:hidden}
+.skill[data-state="1"] .skill__star svg{visibility:visible}
+.skill[data-state="2"] .skill__star svg{visibility:visible;fill:var(--accent)}
 .skill[data-state="2"]{border-color:rgba(255,211,107,.45);background:rgba(255,211,107,.07)}
 .skill__label{flex:1;min-width:0}
 .skill__val{font-weight:800;font-variant-numeric:tabular-nums}
