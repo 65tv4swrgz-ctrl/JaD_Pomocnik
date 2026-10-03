@@ -174,11 +174,11 @@ export function render(host, id) {
       const m = mod(c[col]);
       return `<div class="ability">
         <div class="ability__name">${name.toUpperCase()}</div>
-        <div class="ability__mod">${signed(m)}</div>
-        <div class="ability__score">
-          <button class="btn btn-secondary btn-sm btn-icon" type="button" data-act="ab" data-col="${col}" data-d="-1" aria-label="Snížit ${name}">−</button>
+        <div class="ability__arch" aria-label="Oprava"><span class="ability__mod">${signed(m)}</span></div>
+        <div class="ability__score" aria-label="Hodnota vlastnosti">
+          <button class="ability__pm" type="button" data-act="ab" data-col="${col}" data-d="-1" aria-label="Snížit ${name}">−</button>
           <span class="ability__val">${c[col]}</span>
-          <button class="btn btn-secondary btn-sm btn-icon" type="button" data-act="ab" data-col="${col}" data-d="1" aria-label="Zvýšit ${name}">+</button>
+          <button class="ability__pm" type="button" data-act="ab" data-col="${col}" data-d="1" aria-label="Zvýšit ${name}">+</button>
         </div>
         <div class="skills">${skills
           .map((s) => {
@@ -717,7 +717,11 @@ export function render(host, id) {
         case 'spell-jump': {
           const el = root.querySelector('#spell-' + d.id);
           if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Kouzlo pod přilepený seznam (horní lišta + seznam kouzel).
+            const chips = root.querySelector('.spell-chips');
+            const stuckTop = parseFloat(getComputedStyle(chips).top) || 0;
+            const bar = stuckTop + chips.getBoundingClientRect().height;
+            window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - bar - 10), behavior: 'smooth' });
             el.classList.remove('flash');
             void el.offsetWidth;
             el.classList.add('flash');

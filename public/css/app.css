@@ -220,11 +220,22 @@ textarea.autosize{overflow:hidden;resize:none}
 @media (max-width:560px){ .ability-grid{grid-template-columns:1fr} }
 .prof-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:12px}
 .ability{border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));padding:12px}
-.ability__name{font-weight:800;letter-spacing:.06em;font-size:13px;color:var(--muted);text-align:center}
-.ability__mod{font-size:2rem;font-weight:800;text-align:center;color:var(--accent);line-height:1.2;font-variant-numeric:tabular-nums}
-.ability__score{display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 8px}
-.ability__val{font-size:1.15rem;font-weight:800;min-width:2em;text-align:center;font-variant-numeric:tabular-nums}
-.skills{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.ability__name{font-weight:900;letter-spacing:.06em;font-size:16px;color:var(--text);text-align:center}
+/* Oprava v „pergamenovém“ rámečku, pod ním skóre s velkými ± (jako na webu) */
+.ability__arch{position:relative;width:135px;height:100px;margin:10px auto 0;border:4px solid #0f172a;border-radius:20px;
+  background:radial-gradient(120% 120% at 30% 20%,#f7efd7 0%,#efe2bf 45%,#e7d4a7 100%);
+  box-shadow:inset 0 12px 20px rgba(0,0,0,.35),inset 0 -10px 14px rgba(255,255,255,.25),0 10px 25px rgba(0,0,0,.6);
+  display:flex;align-items:center;justify-content:center;color:#121416;z-index:1}
+.ability__mod{font-size:56px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;transform:translateY(-8px)}
+.ability__score{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;margin:-20px 0 10px}
+.ability__pm{width:60px;height:60px;border:4px solid #0f172a;border-radius:15px;font:inherit;font-size:32px;font-weight:900;line-height:1;color:#121416;cursor:pointer;touch-action:manipulation;
+  background:linear-gradient(180deg,rgba(215,162,74,1),rgba(175,120,35,1));
+  box-shadow:0 10px 20px rgba(0,0,0,.6),inset 0 6px 10px rgba(255,255,255,.35),inset 0 -8px 10px rgba(0,0,0,.3)}
+.ability__pm:active{transform:translateY(1px)}
+.ability__val{width:72px;height:45px;margin:0 -4px;border:4px solid #0f172a;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(120% 120% at 30% 20%,#f7efd7 0%,#efe2bf 45%,#e7d4a7 100%);
+  box-shadow:inset 0 8px 14px rgba(0,0,0,.28),inset 0 -6px 10px rgba(255,255,255,.2);
+  color:#121416;font-size:28px;font-weight:900;font-variant-numeric:tabular-nums}.skills{display:flex;flex-direction:column;gap:4px;margin-top:6px}
 .skill{display:flex;align-items:center;gap:8px;width:100%;min-height:var(--tap);padding:6px 10px;border-radius:10px;border:1px solid var(--faint);background:rgba(0,0,0,.18);color:var(--text);font:inherit;font-size:15px;text-align:left;cursor:pointer;touch-action:manipulation}
 .skill:hover{border-color:rgba(215,162,74,.4)}
 .skill__star{display:inline-flex;flex:0 0 auto}
@@ -254,7 +265,10 @@ textarea.autosize{overflow:hidden;resize:none}
 .slot input:focus-visible + span{outline:2px solid rgba(215,162,74,.6);outline-offset:2px}
 .caster-box{border:1px solid var(--faint);border-radius:12px;padding:10px 12px;background:rgba(0,0,0,.15)}
 
-.spell-chips{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+/* Seznam kouzel zůstává při skrolování pod horní lištou */
+.spell-chips{position:sticky;top:calc(var(--topbar-h) + env(safe-area-inset-top) + 8px);z-index:20;display:flex;flex-wrap:wrap;gap:6px;margin:12px 0;
+  padding:8px;border-radius:12px;border:1px solid var(--line);background:rgba(17,23,31,.96);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  box-shadow:0 8px 20px rgba(0,0,0,.35);max-height:30vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .spell-chip{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--muted);border-radius:999px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer;min-height:36px}
 .spell-chip.is-prepared{color:var(--text);border-color:rgba(215,162,74,.6);background:rgba(215,162,74,.15)}
 .spell-list{display:flex;flex-direction:column;gap:8px}

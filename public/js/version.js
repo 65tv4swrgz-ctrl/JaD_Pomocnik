@@ -1,2 +1,2 @@
 // Verzi zapisuje tools/stamp.py (hash obsahu public/) – ručně neupravovat.
-export const APP_VERSION = '292ef6de95';
+export const APP_VERSION = 'dd7aafe4b2';
