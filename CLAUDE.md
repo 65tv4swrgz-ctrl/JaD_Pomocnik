@@ -17,5 +17,8 @@ příručka (protivníci, předměty, kouzla) + generátor a vedení střetnutí
   operace nad DB v `js/store.js`. Postavy: číselníky a výpočty `js/charrules.js`, DB `js/charstore.js`
   (port `CharacterService`/`CharacterRepository`); postavy záměrně nejsou propojené s družinami/střetnutími.
 - Pohledy, které věší delegované posluchače, si vytvoří vlastní obal uvnitř `#app` (ten přežívá přechody). Názvy sloupců do SQL nikdy nesestavovat z uživatelského vstupu (whitelist).
+- Házeč kostkami: UI `js/dice.js` (montuje se do `body`, mimo router), 3D/fyzika `js/dice3d.js` (líně načtený;
+  three.js a cannon-es z jsDelivr jsou v PRECACHE). V testovacím panelu neběží requestAnimationFrame →
+  fyziku testuj přes `_settleNow()` / `_probe()`, geometrii přes `_shape()`.
 - Na `localhost` je service worker vypnutý; offline test přes `?sw=1`.
 - Na tomto PC je Python dostupný jako `py` (ne `python`).

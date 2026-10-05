@@ -1,6 +1,6 @@
 // Service worker: všechno potřebné pro offline běh se stáhne při instalaci do cache.
 // BUILD mění skript tools/stamp.py (hash obsahu) – změna souboru = nová verze pro zařízení.
-const BUILD = '5f6353ee16';
+const BUILD = '3a31c80a8b';
 const CACHE = 'jad-' + BUILD;
 
 const SQLJS = 'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/';
@@ -16,6 +16,8 @@ const PRECACHE = [
   'js/charrules.js',
   'js/charstore.js',
   'js/db.js',
+  'js/dice.js',
+  'js/dice3d.js',
   'js/rules.js',
   'js/store.js',
   'js/util.js',
@@ -46,6 +48,9 @@ const PRECACHE = [
   'icons/md_mince.png',
   SQLJS + 'sql-wasm.js',
   SQLJS + 'sql-wasm.wasm',
+  // Házeč kostkami (3D a fyzika)
+  'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js',
+  'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js',
 ];
 
 /** Odpověď, která prošla přesměrováním, se nesmí vrátit navigaci – vytvoříme čistou kopii. */

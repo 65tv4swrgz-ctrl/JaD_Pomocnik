@@ -14,6 +14,7 @@ import * as play from './views/play.js';
 import * as settings from './views/settings.js';
 import * as characters from './views/characters.js';
 import * as character from './views/character.js';
+import { mountDice } from './dice.js';
 
 const ROUTES = [
   [/^$/, home.render, ''],
@@ -134,6 +135,7 @@ function initServiceWorker() {
 async function boot() {
   measureTopbar();
   initServiceWorker();
+  mountDice();
   try {
     await initDatabases();
   } catch (e) {
