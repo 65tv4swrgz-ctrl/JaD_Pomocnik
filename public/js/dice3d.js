@@ -10,8 +10,25 @@ const UNIT_M = 0.016;
 const GRAVITY = 9.82 / UNIT_M; // ≈ 614 j/s²
 const HALF_SHORT = 7; // polovina kratší strany okna v jednotkách (≈ 11 cm – kostka vůči iPadu zhruba ve skutečné velikosti)
 const STEP = 1 / 240;
-const MAX_ROLL_S = 3; // nejdéle čekáme na uklidnění jednoho „kola“ (normálně ~1 s; déle = kostka se chvěje zaklíněná)
-const HARD_MAX_S = 8; // celková délka hodu včetně ťuknutí do nakloněných kostek
+// Časy jsou fyzikální; na displeji trvají 1/timeScale krát déle (při 0,5× dvojnásobek).
+const MAX_ROLL_S = 2; // nejdéle čekáme na uklidnění jednoho „kola“ (normálně ~0,6 s; déle = kostka se chvěje zaklíněná)
+const HARD_MAX_S = 3.5; // celková délka hodu včetně ťuknutí do nakloněných kostek (≈ 7 s na displeji)
+
+// Hod a materiály. Kostka vyletí z ruky po oblouku (~10–13 cm vysoko), dopadne, poskočí a dokutálí se.
+const TUNE = {
+  // Skutečný hod se uklidní za ~0,7 s (zemská gravitace, kostka 1,8 cm) – na displeji to působí jako mrsknutí.
+  // Proto zpomalený záběr 0,5×: trajektorie, odrazy i překulení jsou fyzikálně stejné, jen se přehrávají pomaleji.
+  timeScale: 0.5,
+  floor: { friction: 0.2, restitution: 0.34 },
+  wall: { friction: 0.1, restitution: 0.5 },
+  dice: { friction: 0.2, restitution: 0.35 },
+  linearDamping: 0.02,
+  angularDamping: 0.1,
+  spawnY: [6, 8],
+  hSpeed: [24, 36], // ≈ 0,4–0,6 m/s vodorovně
+  vUp: [8, 14], // ≈ 0,13–0,22 m/s nahoru – oblouk
+  spin: [24, 34], // rad/s
+};
 
 // ---------------------------------------------------------------------------
 // Geometrie mnohostěnů
@@ -302,7 +319,9 @@ let ctx3 = null; // { overlay, renderer, scene, camera, world, walls, light, dic
 function build() {
   const overlay = document.createElement('div');
   overlay.className = 'dice-overlay';
-  overlay.innerHTML = '<canvas class="dice-canvas"></canvas><div class="dice-result" hidden></div>';
+  overlay.innerHTML = `<canvas class="dice-canvas"></canvas>
+    <div class="dice-total" aria-live="polite" hidden></div>
+    <button class="btn dice-reroll" type="button" hidden>Hodit znovu</button>`;
   document.body.appendChild(overlay);
   const canvas = overlay.querySelector('canvas');
 
@@ -333,10 +352,10 @@ function build() {
   const diceMat = new CANNON.Material('dice');
   const floorMat = new CANNON.Material('floor');
   const wallMat = new CANNON.Material('wall');
-  // Dřevěný stůl / plastová kostka: střední tření, odraz ~0,4; stěny pružnější a hladší.
-  world.addContactMaterial(new CANNON.ContactMaterial(floorMat, diceMat, { friction: 0.32, restitution: 0.42 }));
-  world.addContactMaterial(new CANNON.ContactMaterial(wallMat, diceMat, { friction: 0.08, restitution: 0.6 }));
-  world.addContactMaterial(new CANNON.ContactMaterial(diceMat, diceMat, { friction: 0.2, restitution: 0.45 }));
+  // Dřevěný stůl / plastová kostka; stěny okna pružnější a hladší.
+  world.addContactMaterial(new CANNON.ContactMaterial(floorMat, diceMat, TUNE.floor));
+  world.addContactMaterial(new CANNON.ContactMaterial(wallMat, diceMat, TUNE.wall));
+  world.addContactMaterial(new CANNON.ContactMaterial(diceMat, diceMat, TUNE.dice));
 
   const floorBody = new CANNON.Body({ mass: 0, material: floorMat, shape: new CANNON.Plane() });
   floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
@@ -349,8 +368,12 @@ function build() {
   });
 
   ctx3 = { overlay, renderer, scene, camera, world, walls, light, diceMat, dice: [], raf: 0, half: { w: 10, h: 10 } };
+  // Po hodu: „Hodit znovu“, nebo klepnutí kamkoli jinam hod zavře.
   overlay.addEventListener('click', (e) => {
-    if (e.target.closest('.dice-result')) return;
+    if (e.target.closest('.dice-reroll')) {
+      if (ctx3.onReroll) ctx3.onReroll();
+      return;
+    }
     if (ctx3.state === 'done') close();
   });
   window.addEventListener('resize', layout);
@@ -421,8 +444,8 @@ function createDie(type, tens) {
     mass: 0.1 * SIZE[type] ** 3,
     material: ctx3.diceMat,
     shape: poly,
-    linearDamping: 0.05,
-    angularDamping: 0.08,
+    linearDamping: TUNE.linearDamping,
+    angularDamping: TUNE.angularDamping,
     allowSleep: true,
     sleepSpeedLimit: 1.2,
     sleepTimeLimit: 0.35,
@@ -443,12 +466,16 @@ function throwDice(dice) {
     const col = i % perRow;
     const cols = Math.min(perRow, n - row * perRow);
     const b = d.body;
-    b.position.set((col - (cols - 1) / 2) * 2.6 + rnd(-0.3, 0.3), 3 + row * 2.6, h - 2 - rnd(0, 1));
+    b.position.set((col - (cols - 1) / 2) * 2.6 + rnd(-0.3, 0.3), rnd(...TUNE.spawnY) + row * 2.6, h - 1.6 - rnd(0, 0.6));
     b.quaternion.setFromEuler(rnd(0, Math.PI * 2), rnd(0, Math.PI * 2), rnd(0, Math.PI * 2));
-    const speed = rnd(32, 62); // ≈ 0,5–1 m/s – běžný hod rukou
+    const speed = rnd(...TUNE.hSpeed);
     const ang = rnd(-0.4, 0.4);
-    b.velocity.set(Math.sin(ang) * speed, rnd(5, 18), -Math.cos(ang) * speed);
-    b.angularVelocity.set(rnd(-30, 30), rnd(-30, 30), rnd(-30, 30));
+    b.velocity.set(Math.sin(ang) * speed, rnd(...TUNE.vUp), -Math.cos(ang) * speed);
+    // Rotace kolem náhodné osy (z ruky kostka „sjede“ přes prsty).
+    const ax = new CANNON.Vec3(rnd(-1, 1), rnd(-0.3, 0.3), rnd(-1, 1));
+    ax.normalize();
+    ax.scale(rnd(...TUNE.spin), ax);
+    b.angularVelocity.copy(ax);
     b.wakeUp();
   });
 }
@@ -493,7 +520,7 @@ export function roll(spec, { onReroll } = {}) {
   cancelAnimationFrame(ctx3.raf);
   clearDice();
   ctx3.overlay.classList.add('is-open');
-  ctx3.overlay.querySelector('.dice-result').hidden = true;
+  hideTotal();
   ctx3.state = 'rolling';
   ctx3.onReroll = onReroll;
   layout();
@@ -520,7 +547,7 @@ export function roll(spec, { onReroll } = {}) {
 
   let last = performance.now();
   const frame = (now) => {
-    const done = advance(Math.min(0.05, (now - last) / 1000));
+    const done = advance(Math.min(0.05, (now - last) / 1000) * TUNE.timeScale);
     last = now;
     sync();
     ctx3.renderer.render(ctx3.scene, ctx3.camera);
@@ -551,7 +578,7 @@ function advance(dt) {
   sim.calm = 0;
   // Kostka opřená o hranu (o stěnu nebo jinou kostku) – jako u stolu do ní lehce ťukneme.
   const cocked = ctx3.dice.filter((d) => readDie(d).flat < d.shape.readLimit);
-  if (cocked.length && sim.nudges < 4 && sim.total < HARD_MAX_S - 2) {
+  if (cocked.length && sim.nudges < 4 && sim.total < HARD_MAX_S - 0.9) {
     sim.nudges++;
     sim.elapsed = 0; // nové „kolo“ uklidnění
     for (const d of cocked) {
@@ -590,48 +617,59 @@ function advance(dt) {
   return true;
 }
 
-const LABEL = { d4: 'K4', d6: 'K6', d8: 'K8', d10: 'K10', d12: 'K12', d20: 'K20', d100: 'K100' };
-
 function finish(groups) {
   ctx3.state = 'done';
-  const byType = new Map();
   let total = 0;
   for (const g of groups) {
-    let v;
     if (g.type === 'd100') {
       const t = readDie(g.dice[0]).value;
       const o = readDie(g.dice[1]).value;
-      v = t * 10 + o || 100; // 00 + 0 = 100
+      total += t * 10 + o || 100; // 00 + 0 = 100
     } else if (g.type === 'd10') {
-      v = readDie(g.dice[0]).value || 10; // 0 = 10
+      total += readDie(g.dice[0]).value || 10; // 0 = 10
     } else {
-      v = readDie(g.dice[0]).value;
+      total += readDie(g.dice[0]).value;
     }
-    total += v;
-    if (!byType.has(g.type)) byType.set(g.type, []);
-    byType.get(g.type).push(v);
   }
-  const parts = [...byType.entries()]
-    .map(([t, vals]) => `<span class="dice-result__part"><strong>${vals.length > 1 ? vals.length : ''}${LABEL[t]}</strong> ${vals.join(' + ')}</span>`)
-    .join('');
-  const box = ctx3.overlay.querySelector('.dice-result');
-  box.innerHTML = `
-    <div class="dice-result__label">Celkem</div>
-    <div class="dice-result__total">${total}</div>
-    <div class="dice-result__parts">${parts}</div>
-    <div class="dice-result__btns">
-      <button class="btn btn-secondary btn-sm" type="button" data-dice-reroll>Hodit znovu</button>
-      <button class="btn btn-sm" type="button" data-dice-close>Zavřít</button>
-    </div>`;
-  box.hidden = false;
-  box.querySelector('[data-dice-close]').onclick = close;
-  box.querySelector('[data-dice-reroll]').onclick = () => ctx3.onReroll && ctx3.onReroll();
+  ctx3.total = total;
+  showTotal(total);
+}
+
+/** Velké zářící číslo: krátce naběhne od nuly, pak se jemně rozzáří. */
+function showTotal(total) {
+  const el = ctx3.overlay.querySelector('.dice-total');
+  const btn = ctx3.overlay.querySelector('.dice-reroll');
+  el.textContent = '0';
+  el.hidden = false;
+  el.classList.remove('is-in');
+  void el.offsetWidth;
+  el.classList.add('is-in');
+  btn.hidden = false;
+
+  const dur = 650;
+  const t0 = performance.now();
+  const tick = (now) => {
+    const p = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = String(Math.round(total * eased));
+    if (p < 1 && ctx3.state === 'done') ctx3.countRaf = requestAnimationFrame(tick);
+  };
+  ctx3.countRaf = requestAnimationFrame(tick);
+  // Kdyby prohlížeč animační snímky neposílal (karta na pozadí), číslo se doplní i tak.
+  setTimeout(() => ctx3 && ctx3.state === 'done' && (el.textContent = String(total)), dur + 100);
+}
+
+function hideTotal() {
+  cancelAnimationFrame(ctx3.countRaf);
+  ctx3.overlay.querySelector('.dice-total').hidden = true;
+  ctx3.overlay.querySelector('.dice-reroll').hidden = true;
 }
 
 export function close() {
   if (!ctx3) return;
   cancelAnimationFrame(ctx3.raf);
   clearDice();
+  hideTotal();
   ctx3.state = 'idle';
   ctx3.overlay.classList.remove('is-open');
 }
@@ -640,6 +678,65 @@ export const isOpen = () => !!ctx3 && ctx3.overlay.classList.contains('is-open')
 
 /** Pro kontrolu geometrie a fyziky (testy v konzoli). */
 export const _shape = shape;
+
+/** Ladění parametrů hodu (scéna se při dalším hodu postaví znovu). */
+export function _tune(patch) {
+  for (const [k, v] of Object.entries(patch)) TUNE[k] = typeof v === 'object' && !Array.isArray(v) ? { ...TUNE[k], ...v } : v;
+  if (ctx3) {
+    cancelAnimationFrame(ctx3.raf);
+    ctx3.overlay.remove();
+    ctx3 = null;
+  }
+  return { ...TUNE };
+}
+
+/** Průběh rozběhnutého hodu (fyzikální čas): let, odskoky, překulení, dráha, doba do klidu, prudkost zastavení. */
+export function _trace() {
+  cancelAnimationFrame(ctx3.raf);
+  const st = ctx3.dice.map((d) => ({ firstHit: null, bounces: 0, prevVy: 0, dist: 0, rot: 0, still: null, lastX: d.body.position.x, lastZ: d.body.position.z, decel: [] }));
+  let t = 0;
+  while (t < 8) {
+    ctx3.world.step(STEP);
+    t += STEP;
+    ctx3.dice.forEach((d, i) => {
+      const s = st[i];
+      const b = d.body;
+      const vy = b.velocity.y;
+      if (s.prevVy < -3 && vy > 0.5) {
+        s.bounces++;
+        if (s.firstHit === null) s.firstHit = t;
+      }
+      s.prevVy = vy;
+      s.dist += Math.hypot(b.position.x - s.lastX, b.position.z - s.lastZ);
+      s.lastX = b.position.x;
+      s.lastZ = b.position.z;
+      s.rot += b.angularVelocity.length() * STEP;
+      const speed = b.velocity.length();
+      if (s.still === null && speed < 1 && b.angularVelocity.length() < 0.5) s.still = t;
+      else if (speed >= 1) s.still = null;
+      s.decel.push(speed);
+    });
+    if (st.every((s) => s.still !== null && t - s.still > 0.3)) break;
+  }
+  return st.map((s, i) => {
+    // Prudkost zastavení: za jak dlouho kostka spadne z 30 % své rychlosti po posledním dopadu na nulu.
+    const sp = s.decel;
+    const stopAt = s.still ?? t;
+    const idx = Math.max(0, Math.round(stopAt / STEP) - 1);
+    let j = idx;
+    const ref = Math.max(...sp.slice(Math.max(0, idx - Math.round(0.6 / STEP)), idx + 1));
+    while (j > 0 && sp[j] < ref * 0.3) j--;
+    return {
+      type: ctx3.dice[i].type,
+      let_s: s.firstHit === null ? null : +s.firstHit.toFixed(2),
+      odskoky: s.bounces,
+      překulení: +(s.rot / (Math.PI / 2)).toFixed(1),
+      dráha_cm: Math.round(s.dist * UNIT_M * 100),
+      klid_s: +(s.still ?? t).toFixed(2),
+      dobrzdění_s: +((idx - j) * STEP).toFixed(2),
+    };
+  });
+}
 
 /** Krok fyziky o dané sekundy (bez vyhodnocení) a stav kostek – pro ladění usínání. */
 export function _probe(seconds) {

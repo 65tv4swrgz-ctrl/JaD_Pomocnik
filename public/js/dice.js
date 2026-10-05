@@ -23,6 +23,13 @@ const ICON = {
   d20: '<polygon points="12,2 21,7 21,17 12,22 3,17 3,7"/><polygon points="12,6 17.5,15.5 6.5,15.5"/>',
   d100: '<polygon points="9,2 16,8 9,17 2,8"/><polygon points="16,7 23,13 16,22 9,13"/>',
 };
+/** Ikona tlačítka: kostka se čtyřmi oky (vlastní SVG ve stylu „dice-4“). */
+const FAB_ICON = `<svg width="30" height="30" viewBox="0 0 16 16" aria-hidden="true">
+  <rect x="1.25" y="1.25" width="13.5" height="13.5" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <circle cx="5.1" cy="5.1" r="1.35" fill="currentColor"/><circle cx="10.9" cy="5.1" r="1.35" fill="currentColor"/>
+  <circle cx="5.1" cy="10.9" r="1.35" fill="currentColor"/><circle cx="10.9" cy="10.9" r="1.35" fill="currentColor"/>
+</svg>`;
+
 const iconSvg = (t, size = 22) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">${ICON[t]}</svg>`;
 
@@ -57,7 +64,7 @@ export function mountDice() {
         <button class="btn dice-menu__roll" type="button" data-roll>HOD</button>
       </div>
     </div>
-    <button class="dice-fab" type="button" aria-label="Házeč kostkami" aria-expanded="false">${iconSvg('d20', 30)}</button>`;
+    <button class="dice-fab" type="button" aria-label="Házeč kostkami" aria-expanded="false">${FAB_ICON}</button>`;
   document.body.appendChild(wrap);
 
   const menu = wrap.querySelector('.dice-menu');

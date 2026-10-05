@@ -308,18 +308,32 @@ textarea.autosize{overflow:hidden;resize:none}
 .dice-menu__sum{padding:8px 6px 0;margin-top:6px;border-top:1px solid var(--faint);font-size:13px;color:var(--muted);text-align:center;overflow-wrap:anywhere}
 .dice-menu__foot{display:flex;justify-content:space-between;gap:8px;padding:8px 6px 4px}
 .dice-menu__roll{flex:1;font-size:16px;letter-spacing:.04em}
-.dice-overlay{position:fixed;inset:0;z-index:300;display:none}
+/* Překryv hodu: stránka v pozadí lehce rozostřená a ztmavená, ale čitelná */
+.dice-overlay{position:fixed;inset:0;z-index:300;display:none;cursor:default;
+  background:rgba(6,9,13,.2);-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);animation:diceFade .3s ease-out}
 .dice-overlay.is-open{display:block}
+@keyframes diceFade{from{background:rgba(6,9,13,0);-webkit-backdrop-filter:blur(0);backdrop-filter:blur(0)}}
 .dice-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.dice-result{position:absolute;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);min-width:220px;max-width:calc(100vw - 32px);
-  text-align:center;border-radius:18px;border:1px solid rgba(215,162,74,.5);background:rgba(15,20,27,.94);box-shadow:0 18px 42px rgba(0,0,0,.55);padding:12px 18px;
-  animation:diceIn .25s ease-out}
-@keyframes diceIn{from{opacity:0;transform:translate(-50%,8px)}}
-.dice-result__label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.dice-result__total{font-size:3rem;font-weight:900;line-height:1.1;color:var(--accent);font-variant-numeric:tabular-nums}
-.dice-result__parts{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;font-size:15px;margin-top:2px}
-.dice-result__part strong{color:var(--muted);margin-right:4px}
-.dice-result__btns{display:flex;justify-content:center;gap:8px;margin-top:10px}
+
+/* Výsledek: jen velké zářící číslo – naběhne a jemně se rozzáří */
+.dice-total{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;pointer-events:none;
+  font-size:clamp(96px,22vmin,200px);font-weight:900;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+  color:#ffe2a3;-webkit-text-stroke:2px rgba(120,72,10,.55);
+  text-shadow:0 0 18px rgba(255,196,92,.85),0 0 46px rgba(215,162,74,.6),0 0 90px rgba(215,162,74,.35),0 6px 18px rgba(0,0,0,.5)}
+.dice-total.is-in{animation:diceRise .6s cubic-bezier(.2,.8,.2,1) both, diceGlow 2.4s ease-in-out .6s infinite}
+@keyframes diceRise{
+  from{opacity:0;transform:translateY(-38%) scale(.86);filter:blur(6px)}
+  to{opacity:1;transform:translateY(-50%) scale(1);filter:blur(0)}
+}
+@keyframes diceGlow{
+  0%,100%{text-shadow:0 0 18px rgba(255,196,92,.85),0 0 46px rgba(215,162,74,.6),0 0 90px rgba(215,162,74,.35),0 6px 18px rgba(0,0,0,.5)}
+  50%{text-shadow:0 0 24px rgba(255,214,130,1),0 0 64px rgba(230,178,90,.75),0 0 120px rgba(215,162,74,.45),0 6px 18px rgba(0,0,0,.5)}
+}
+@media (prefers-reduced-motion: reduce){ .dice-total.is-in{animation:none} .dice-overlay{animation:none} }
+
+.dice-reroll{position:absolute;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);
+  min-width:200px;font-size:17px;box-shadow:0 10px 26px rgba(0,0,0,.5);animation:diceBtn .3s ease-out .35s both}
+@keyframes diceBtn{from{opacity:0;transform:translate(-50%,10px)}}
 .footer{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 
 /* Dotaz na iniciativu a BV hráčů */

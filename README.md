@@ -13,7 +13,9 @@ Offline verze herního pomocníka pro **Jeskyně a draci**, určená hlavně pro
 - **Házeč kostkami** – tlačítko vpravo dole na každé stránce; K4–K20 a K100, 3D kostky s fyzikou
   (three.js + cannon-es, skutečná gravitace a měřítko), plocha ohraničená oknem, součet po dopadu.
   K10 je pětiboký trapezoedr (pravidelný desetistěn neexistuje), K100 = dvě K10 (desítky + jednotky).
-  Kostka zaklíněná o jinou kostku/stěnu dostane „ťuknutí“ jako na stole; hod nikdy netrvá déle než 8 s.
+  Kostka zaklíněná o jinou kostku/stěnu dostane „ťuknutí“ jako na stole. Fyzika běží ve skutečném měřítku,
+  přehrává se ale zpomaleně 0,5× (`TUNE.timeScale` v `dice3d.js`) – skutečný hod trvá jen ~0,7 s a na displeji
+  působil jako mrsknutí. Výsledek = velké zářící číslo; klepnutí na volnou plochu hod zavře.
 
 Běží čistě ve prohlížeči: statické soubory + [sql.js](https://sql.js.org) (SQLite ve WebAssembly).
 Žádný server ani build krok.
