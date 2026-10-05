@@ -178,6 +178,10 @@ const USER_MIGRATIONS = [
     PRIMARY KEY (character_id, spell_id)
   );
   `,
+  // v3 – pořadí hrdinů se shodnou iniciativou (dohoda u stolu); vyšší = dřív na tahu
+  `
+  ALTER TABLE encounter_instances ADD COLUMN init_tie INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 function migrate(db) {

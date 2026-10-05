@@ -4,7 +4,8 @@ Offline verze herního pomocníka pro **Jeskyně a draci**, určená hlavně pro
 
 - **Příručka** – protivníci, předměty a kouzla s vyhledáváním a filtry (data ze zálohy webové verze).
 - **Generátor střetnutí** – výpočet síly podle JaD tabulky, boss, režimy lootu.
-- **Vedení boje** – iniciativa (včetně řešení shod), tahy a kola, body výdrže, stavy s odpočtem,
+- **Vedení boje** – iniciativa se shodami řešenými automaticky (protivník × protivník → přehoz,
+  hrdina × protivník → hrdina +1, hrdina × hrdina → pořadí dohodou v dialogu, zobrazeno jako 15¹, 15²), tahy a kola, body výdrže, stavy s odpočtem,
   přidávání protivníků za běhu, loot a jeho předávání, poznámky.
 - **Družiny** – hrdinové pro střetnutí s úrovní a BV (BV se během boje zapisují zpět).
 - **Postavy** – deník hráčské postavy (vlastnosti a zdatnosti, bojová výbava, kouzla s pozicemi a truhlou,

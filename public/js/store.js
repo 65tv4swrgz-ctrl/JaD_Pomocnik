@@ -167,8 +167,9 @@ export function createEncounter({ partyId, name, picks, lootMode, baseItemsOnly 
 // ===========================================================================
 // Instance (účastníci)
 
-const PLAY_ORDER = `ORDER BY is_defeated ASC, (initiative IS NULL) ASC, initiative DESC, id ASC`;
-const TURN_ORDER = `ORDER BY (initiative IS NULL) ASC, initiative DESC, id ASC`;
+// init_tie = pořadí hrdinů se stejnou iniciativou dohodnuté u stolu (vyšší = dřív).
+const PLAY_ORDER = `ORDER BY is_defeated ASC, (initiative IS NULL) ASC, initiative DESC, init_tie DESC, id ASC`;
+const TURN_ORDER = `ORDER BY (initiative IS NULL) ASC, initiative DESC, init_tie DESC, id ASC`;
 
 export function listInstances(eid) {
   return user.all(`SELECT * FROM encounter_instances WHERE encounter_id=? ${PLAY_ORDER}`, [eid]);
@@ -212,6 +213,14 @@ export function deleteInstance(eid, iid) {
   });
 }
 
+/** Hod na iniciativu pro protivníka přidaného za boje: přehazuje se, dokud by se shodoval s někým ve hře. */
+function freeInitiative(eid) {
+  const taken = new Set(user.all('SELECT initiative FROM encounter_instances WHERE encounter_id=? AND is_defeated=0 AND initiative IS NOT NULL', [eid]).map((r) => r.initiative));
+  let v = d20();
+  for (let i = 0; i < 50 && taken.has(v); i++) v = d20();
+  return v;
+}
+
 /** Přidání protivníka z bestiáře do běžícího boje (s hodem na iniciativu, bez bosse). */
 export function spawnMonster(eid, monsterId, qty) {
   const m = catalog().monsterById.get(monsterId);
@@ -224,7 +233,7 @@ export function spawnMonster(eid, monsterId, qty) {
     for (let i = 0; i < qty; i++) {
       no++;
       const label = `${m.jmeno} #${no}`;
-      const init = d20();
+      const init = freeInitiative(eid);
       const id = user.insert(
         'INSERT INTO encounter_instances (encounter_id, monster_id, instance_no, name_override, hp_current, hp_max, initiative) VALUES (?,?,?,?,?,?,?)',
         [eid, monsterId, no, label, hp, hp, init]
@@ -242,7 +251,7 @@ export function spawnSimple(eid, { name, hp, ac, attack }) {
   const no = nextInstanceNo(eid, -1);
   let label = name.trim();
   if (!label.includes('#')) label += ' #' + no;
-  const init = d20();
+  const init = freeInitiative(eid);
   const id = user.insert(
     'INSERT INTO encounter_instances (encounter_id, monster_id, instance_no, name_override, hp_current, hp_max, simple_ac, simple_attack, initiative) VALUES (?,-1,?,?,?,?,?,?,?)',
     [eid, no, label, hp ?? null, hp ?? null, ac ?? null, (attack ?? '').trim(), init]
@@ -275,10 +284,12 @@ export function startEncounter(eid) {
   const enc = getEncounter(eid);
   if (!enc || enc.phase !== 'prepared') return;
   user.tx(() => {
-    user.run('UPDATE encounter_instances SET initiative=NULL WHERE encounter_id=? AND monster_id IS NULL', [eid]);
+    user.run('UPDATE encounter_instances SET initiative=NULL, init_tie=0 WHERE encounter_id=? AND monster_id IS NULL', [eid]);
     for (const r of user.all('SELECT id FROM encounter_instances WHERE encounter_id=? AND monster_id IS NOT NULL', [eid])) {
-      user.run('UPDATE encounter_instances SET initiative=? WHERE id=?', [d20(), r.id]);
+      user.run('UPDATE encounter_instances SET initiative=?, init_tie=0 WHERE id=?', [d20(), r.id]);
     }
+    // Shody mezi protivníky se vyřeší hned (hrdinové ještě iniciativu nemají).
+    resolveInitiativeTies(eid);
     user.run(
       "UPDATE encounters SET phase='playing', round_no=1, active_instance_id=NULL, pc_init_done=0, pc_tie_pending=NULL, updated_at=? WHERE id=?",
       [now(), eid]
@@ -312,29 +323,30 @@ export function ensureActive(eid) {
 
 export function rollInitiativeOne(eid, iid) {
   const v = d20();
-  user.run('UPDATE encounter_instances SET initiative=? WHERE encounter_id=? AND id=?', [v, eid, iid]);
+  user.run('UPDATE encounter_instances SET initiative=?, init_tie=0 WHERE encounter_id=? AND id=?', [v, eid, iid]);
   return v;
 }
 
 export function setInitiative(eid, iid, value) {
   const v = parseInt(value, 10);
-  user.run('UPDATE encounter_instances SET initiative=? WHERE encounter_id=? AND id=?', [Number.isFinite(v) ? v : null, eid, iid]);
+  user.run('UPDATE encounter_instances SET initiative=?, init_tie=0 WHERE encounter_id=? AND id=?', [Number.isFinite(v) ? v : null, eid, iid]);
 }
 
+/** Hod všem (protivníkům, případně i hrdinům) a vyřešení shod. Vrací skupiny hrdinů k seřazení dohodou. */
 export function rollInitiativeAll(eid, includePcs) {
-  user.tx(() => {
+  return user.tx(() => {
     const rows = user.all(
       `SELECT id FROM encounter_instances WHERE encounter_id=? ${includePcs ? '' : 'AND monster_id IS NOT NULL'}`,
       [eid]
     );
-    for (const r of rows) user.run('UPDATE encounter_instances SET initiative=? WHERE id=?', [d20(), r.id]);
-    recomputeActive(eid);
+    for (const r of rows) user.run('UPDATE encounter_instances SET initiative=?, init_tie=0 WHERE id=?', [d20(), r.id]);
+    return settleTies(eid);
   });
 }
 
 export function initiativeDuplicates(eid) {
   const rows = user.all(
-    'SELECT id, monster_id, initiative FROM encounter_instances WHERE encounter_id=? AND is_defeated=0 AND initiative > 0',
+    'SELECT id, monster_id, initiative, init_tie FROM encounter_instances WHERE encounter_id=? AND is_defeated=0 AND initiative > 0',
     [eid]
   );
   const by = {};
@@ -342,42 +354,90 @@ export function initiativeDuplicates(eid) {
   return Object.values(by).filter((l) => l.length > 1);
 }
 
-/** Shody iniciativ: protivníkům se přehodí, u postav vrátí ID k novému zadání. */
+/**
+ * Pravidla shody iniciativ:
+ *  - protivník × protivník → protivníci házejí znovu, dokud nepadnou rozdílné hodnoty;
+ *  - hrdina × protivník → hrdina má přednost (+1);
+ *  - hrdina × hrdina → pořadí dohodou u stolu (vrací se skupiny ID hrdinů k seřazení).
+ * Úpravy se opakují, dokud nějaká vytváří novou shodu.
+ */
 export function resolveInitiativeTies(eid) {
-  for (let i = 0; i < 30; i++) {
-    const dups = initiativeDuplicates(eid);
-    if (!dups.length) return [];
-    const pcNeed = new Set();
-    const reroll = new Set();
-    for (const list of dups) for (const r of list) (r.monster_id === null ? pcNeed : reroll).add(r.id);
-    for (const iid of reroll) rollInitiativeOne(eid, iid);
-    if (pcNeed.size) return [...pcNeed];
+  for (let i = 0; i < 200; i++) {
+    const pcGroups = [];
+    let changed = false;
+    for (const list of initiativeDuplicates(eid)) {
+      const pcs = list.filter((r) => r.monster_id === null);
+      const mons = list.filter((r) => r.monster_id !== null);
+      if (pcs.length && mons.length) {
+        for (const p of pcs) user.run('UPDATE encounter_instances SET initiative=initiative+1, init_tie=0 WHERE id=?', [p.id]);
+        changed = true;
+      } else if (mons.length > 1) {
+        for (const r of mons) rollInitiativeOne(eid, r.id);
+        changed = true;
+      } else if (pcs.length > 1) {
+        // Skupina už seřazená dohodou (různá init_tie) se znovu neptá.
+        const ties = new Set(pcs.map((p) => p.init_tie));
+        if (ties.size !== pcs.length || ties.has(0)) pcGroups.push(pcs.map((p) => p.id));
+      }
+    }
+    if (!changed) return pcGroups;
   }
   return [];
 }
 
+/** Vyřeší shody a zapíše, jestli zbývá seřadit hrdiny dohodou; jinak nastaví prvního na tahu. */
+function settleTies(eid) {
+  const groups = resolveInitiativeTies(eid);
+  if (groups.length) {
+    user.run('UPDATE encounters SET pc_tie_pending=?, active_instance_id=NULL WHERE id=?', [JSON.stringify(groups), eid]);
+  } else {
+    user.run('UPDATE encounters SET pc_tie_pending=NULL WHERE id=?', [eid]);
+    recomputeActive(eid);
+  }
+  return groups;
+}
+
+/** Skupiny hrdinů čekající na seřazení (starší uložený tvar = plochý seznam → jedna skupina). */
+export function pendingTieGroups(enc) {
+  if (!enc?.pc_tie_pending) return [];
+  try {
+    const v = JSON.parse(enc.pc_tie_pending);
+    if (!Array.isArray(v) || !v.length) return [];
+    return Array.isArray(v[0]) ? v : [v];
+  } catch {
+    return [];
+  }
+}
+
 /**
- * Uloží iniciativy postav (map: instanceId -> hodnota) a vyřeší shody.
- * Vrací seznam ID postav, které musí zadat novou iniciativu (prázdný = hotovo).
+ * Uloží iniciativy hrdinů (map: instanceId -> hodnota) a vyřeší shody.
+ * Vrací skupiny hrdinů se shodou, které se seřadí dohodou (prázdné = hotovo).
  */
 export function setPcInitiatives(eid, map) {
   return user.tx(() => {
     for (const [iid, val] of Object.entries(map)) {
       const v = parseInt(val, 10);
-      user.run('UPDATE encounter_instances SET initiative=? WHERE encounter_id=? AND id=? AND monster_id IS NULL', [
+      user.run('UPDATE encounter_instances SET initiative=?, init_tie=0 WHERE encounter_id=? AND id=? AND monster_id IS NULL', [
         v > 0 ? v : null,
         eid,
         Number(iid),
       ]);
     }
-    const pending = resolveInitiativeTies(eid);
-    if (pending.length) {
-      user.run('UPDATE encounters SET pc_init_done=1, pc_tie_pending=?, active_instance_id=NULL WHERE id=?', [JSON.stringify(pending), eid]);
-    } else {
-      user.run('UPDATE encounters SET pc_init_done=1, pc_tie_pending=NULL WHERE id=?', [eid]);
-      recomputeActive(eid);
+    user.run('UPDATE encounters SET pc_init_done=1 WHERE id=?', [eid]);
+    return settleTies(eid);
+  });
+}
+
+/**
+ * Pořadí hrdinů se shodnou iniciativou dohodnuté u stolu. orderedGroups: [[id prvního, id druhého, …], …].
+ * Hodnota iniciativy se nemění, jen pořadí uvnitř shody. Vrací zbylé skupiny (prázdné = hotovo).
+ */
+export function setTieOrder(eid, orderedGroups) {
+  return user.tx(() => {
+    for (const ids of orderedGroups) {
+      ids.forEach((iid, k) => user.run('UPDATE encounter_instances SET init_tie=? WHERE encounter_id=? AND id=?', [ids.length - k, eid, iid]));
     }
-    return pending;
+    return settleTies(eid);
   });
 }
 
@@ -412,7 +472,7 @@ export function setInstanceNote(eid, iid, note) {
 /** Reset: iniciativy pryč, BV na maximum, nikdo vyřazen (jako EncounterRepository::resetInstances). */
 export function resetInstances(eid) {
   user.tx(() => {
-    user.run('UPDATE encounter_instances SET initiative=NULL, hp_current=hp_max, is_defeated=0 WHERE encounter_id=?', [eid]);
+    user.run('UPDATE encounter_instances SET initiative=NULL, init_tie=0, hp_current=hp_max, is_defeated=0 WHERE encounter_id=?', [eid]);
     user.run(
       'UPDATE party_members SET bv_ted=bv_max WHERE id IN (SELECT party_member_id FROM encounter_instances WHERE encounter_id=? AND party_member_id IS NOT NULL) AND bv_max IS NOT NULL',
       [eid]
@@ -477,14 +537,10 @@ export function nextTurn(eid) {
       if (pos >= 0 && pos + 1 < ids.length) nextId = ids[pos + 1];
       else if (pos >= 0) wrapped = true;
       else {
-        // Aktivní mezitím vypadl (vyřazen) – pokračuje první s nižší iniciativou.
-        const act = getInstance(eid, activeId);
-        const after = act
-          ? user.value(
-              `SELECT id FROM encounter_instances WHERE encounter_id=? AND is_defeated=0 AND (initiative < ? OR (initiative = ? AND id > ?)) ${TURN_ORDER} LIMIT 1`,
-              [eid, act.initiative ?? -999, act.initiative ?? -999, act.id]
-            )
-          : null;
+        // Aktivní mezitím vypadl (vyřazen) – pokračuje první živý za ním v celém pořadí.
+        const all = user.all(`SELECT id, is_defeated FROM encounter_instances WHERE encounter_id=? ${TURN_ORDER}`, [eid]);
+        const at = all.findIndex((r) => r.id === activeId);
+        const after = at >= 0 ? all.slice(at + 1).find((r) => !r.is_defeated)?.id : null;
         if (after) nextId = after;
         else wrapped = true;
       }

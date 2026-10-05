@@ -339,6 +339,15 @@ textarea.autosize{overflow:hidden;resize:none}
 @keyframes diceBtn{from{opacity:0;transform:translate(-50%,10px)}}
 .footer{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 
+/* Shoda iniciativy hrdinů – pořadí dohodou */
+.init-tie{font-size:.6em;color:var(--accent);margin-left:1px;font-weight:800}
+.tie-picks{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.tie-pick{display:inline-flex;align-items:center;gap:8px;min-height:var(--tap);padding:8px 14px;border-radius:12px;border:1px solid var(--line);
+  background:rgba(255,255,255,.05);color:var(--text);font:inherit;font-weight:700;cursor:pointer;touch-action:manipulation}
+.tie-pick.is-picked{border-color:rgba(215,162,74,.7);background:rgba(215,162,74,.16)}
+.tie-pick__no{min-width:1.6em;text-align:center;color:var(--accent);font-variant-numeric:tabular-nums}
+.tie-pick__no:empty{display:none}
+
 /* Dotaz na iniciativu a BV hráčů */
 .pc-init{border:1px solid var(--faint);border-radius:12px;padding:10px 12px;background:rgba(0,0,0,.18)}
 .pc-init__name{font-weight:800;margin-bottom:6px}

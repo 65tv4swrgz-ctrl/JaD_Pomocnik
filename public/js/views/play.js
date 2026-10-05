@@ -18,6 +18,8 @@ import {
   resetInstances,
   revive,
   rollInitiativeAll,
+  pendingTieGroups,
+  setTieOrder,
   rollInitiativeOne,
   setDefeated,
   setEncounterField,
@@ -122,7 +124,16 @@ export function render(host, eid) {
     return [m?.kategorie, m?.nebezpecnost ? 'CR ' + m.nebezpecnost : ''].filter(Boolean).join(' · ');
   }
 
-  function cardHtml(i, activeId) {
+  /** Iniciativa; u shody hrdinů seřazené dohodou i pořadí (15¹, 15²). */
+  function initHtml(i, all) {
+    if (i.initiative == null) return '—';
+    if (!i.init_tie) return String(i.initiative);
+    const same = all.filter((o) => o.initiative === i.initiative && !o.is_defeated && o.init_tie > 0).sort((a, b) => b.init_tie - a.init_tie);
+    if (same.length < 2) return String(i.initiative);
+    return `${i.initiative}<sup class="init-tie">${same.findIndex((o) => o.id === i.id) + 1}</sup>`;
+  }
+
+  function cardHtml(i, activeId, all = listInstances(eid)) {
     const pc = isPc(i);
     const dead = !!i.is_defeated;
     const active = i.id === activeId;
@@ -146,7 +157,7 @@ export function render(host, eid) {
       <div class="pcard__ctrls">
         <div class="pcard__ctrl">
           <span class="pcard__ctrl-label">Iniciativa</span>
-          <button class="btn btn-ghost btn-sm pcard__init" type="button" data-init-edit title="Zadat ručně">${i.initiative ?? '—'}</button>
+          <button class="btn btn-ghost btn-sm pcard__init" type="button" data-init-edit title="Zadat ručně">${initHtml(i, all)}</button>
           <button class="btn btn-secondary btn-sm btn-icon" type="button" data-roll title="Hodit d20">${DICE_ICON}</button>
         </div>
         <div class="pcard__ctrl hp">
@@ -211,14 +222,15 @@ export function render(host, eid) {
 
   function drawOverview() {
     const e = getEncounter(eid);
-    const map = byId();
+    const all = listInstances(eid);
+    const map = new Map(all.map((i) => [i.id, i]));
     $('p_overview').innerHTML = order
       .map((id) => map.get(id))
       .filter(Boolean)
       .map(
         (i) => `<li class="${i.id === e.active_instance_id ? 'is-active' : ''} ${i.is_defeated ? 'is-dead' : ''}">
           <button type="button" data-focus="${i.id}"><span class="overview__name">${esc(instanceLabel(i))}${i.is_boss && !isPc(i) ? ' ★' : ''}</span>
-          <span class="overview__init">${i.initiative ?? '—'}</span></button></li>`
+          <span class="overview__init">${initHtml(i, all)}</span></button></li>`
       )
       .join('');
     // Výběr účastníka pro stavy
@@ -236,12 +248,13 @@ export function render(host, eid) {
 
   function drawCards() {
     const e = getEncounter(eid);
-    const map = byId();
+    const all = listInstances(eid);
+    const map = new Map(all.map((i) => [i.id, i]));
     $('p_cards').innerHTML = order.length
       ? order
           .map((id) => map.get(id))
           .filter(Boolean)
-          .map((i) => cardHtml(i, e.active_instance_id))
+          .map((i) => cardHtml(i, e.active_instance_id, all))
           .join('')
       : '<div class="card empty">Střetnutí nemá žádné účastníky.</div>';
   }
@@ -283,27 +296,94 @@ export function render(host, eid) {
     const e = getEncounter(eid);
     if (e.phase !== 'playing') return;
     const pcs = listInstances(eid).filter(isPc);
-    const pending = e.pc_tie_pending ? JSON.parse(e.pc_tie_pending) : [];
+    const groups = pendingTieGroups(e);
     if (!e.pc_init_done && pcs.length && pcs.some((p) => !(p.initiative > 0))) {
-      askInitiative(pcs, false);
-    } else if (pending.length) {
-      askInitiative(pcs.filter((p) => pending.includes(p.id)), true);
+      askInitiative(pcs);
+    } else if (groups.length) {
+      askTieOrder(groups);
     } else {
       ensureActive(eid);
     }
   }
 
-  function askInitiative(pcs, isTie) {
-    // Na začátku boje se kromě iniciativy potvrzují i aktuální BV (při shodě jen iniciativa).
-    const withHp = !isTie;
+  /** Po vyřešení shod: buď dialog pořadí hrdinů, nebo hotovo. */
+  function afterTies(groups, doneMsg) {
+    fullRender();
+    if (groups.length) {
+      askTieOrder(groups);
+    } else {
+      if (doneMsg) toast(doneMsg);
+      const a = getEncounter(eid).active_instance_id;
+      if (a) scrollToCard(a);
+    }
+  }
+
+  /**
+   * Shoda iniciativy mezi hrdiny: pořadí se dohodne u stolu. Hrdiny se odklikají v pořadí,
+   * v jakém půjdou na tah; poslední ve skupině se doplní sám. Hodnota iniciativy se nemění.
+   */
+  function askTieOrder(groups) {
+    const byId = new Map(listInstances(eid).map((i) => [i.id, i]));
+    const order = groups.map(() => []);
     const m = openModal({
-      title: isTie ? 'Shoda iniciativ' : 'Iniciativa a BV hráčů',
+      title: 'Shoda iniciativy hrdinů',
       dismissible: false,
-      body: `<p class="muted" style="margin-top:0">${
-        isTie
-          ? 'Shoda iniciativ – protivníkům se přehodila automaticky, hrdinům zadej novou hodnotu.'
-          : 'Zadej iniciativu hrdinů (hod d20 + bonus) a zkontroluj jejich aktuální body výdrže. Po potvrzení se všichni seřadí.'
-      }</p>
+      body: `<p class="muted" style="margin-top:0">Hrdinové mají stejnou iniciativu. Dohodněte se u stolu a klepněte na ně v pořadí, v jakém půjdou na tah.</p>
+        <div class="grid">${groups
+          .map(
+            (ids, gi) => `<div class="pc-init" data-group="${gi}">
+              <div class="row-between"><div class="pc-init__name">Iniciativa ${esc(byId.get(ids[0])?.initiative ?? '')}</div>
+                <button class="btn btn-ghost btn-sm" type="button" data-clear="${gi}">Znovu</button></div>
+              <div class="tie-picks">${ids
+                .map((id) => `<button type="button" class="tie-pick" data-g="${gi}" data-id="${id}"><span class="tie-pick__no"></span>${esc(instanceLabel(byId.get(id)))}</button>`)
+                .join('')}</div>
+            </div>`
+          )
+          .join('')}</div>`,
+      foot: '<button class="btn" type="button" data-ok disabled>Potvrdit pořadí</button>',
+    });
+    const draw = () => {
+      groups.forEach((ids, gi) => {
+        // Zbývá jediný – doplní se automaticky.
+        if (order[gi].length === ids.length - 1) order[gi].push(ids.find((id) => !order[gi].includes(id)));
+        m.el.querySelectorAll(`.tie-pick[data-g="${gi}"]`).forEach((b) => {
+          const k = order[gi].indexOf(Number(b.dataset.id));
+          b.classList.toggle('is-picked', k >= 0);
+          b.querySelector('.tie-pick__no').textContent = k >= 0 ? k + 1 + '.' : '';
+        });
+      });
+      m.el.querySelector('[data-ok]').disabled = !groups.every((ids, gi) => order[gi].length === ids.length);
+    };
+    m.el.addEventListener('click', (e) => {
+      const pick = e.target.closest('.tie-pick');
+      if (pick) {
+        const gi = Number(pick.dataset.g);
+        const id = Number(pick.dataset.id);
+        if (!order[gi].includes(id)) order[gi].push(id);
+        draw();
+        return;
+      }
+      const clr = e.target.closest('[data-clear]');
+      if (clr) {
+        order[Number(clr.dataset.clear)] = [];
+        draw();
+      }
+    });
+    m.el.querySelector('[data-ok]').addEventListener('click', () => {
+      const rest = setTieOrder(eid, order);
+      m.close();
+      afterTies(rest, 'Pořadí hrdinů uloženo.');
+    });
+    draw();
+  }
+
+  function askInitiative(pcs) {
+    // Na začátku boje se kromě iniciativy potvrzují i aktuální BV.
+    const m = openModal({
+      title: 'Iniciativa a BV hráčů',
+      dismissible: false,
+      body: `<p class="muted" style="margin-top:0">Zadej iniciativu hrdinů (hod d20 + bonus) a zkontroluj jejich aktuální body výdrže. Po potvrzení se všichni seřadí.
+        Při shodě s protivníkem má hrdina přednost (+1), shodné protivníky přehodí aplikace sama.</p>
       <div class="grid">
         ${pcs
           .map(
@@ -312,23 +392,19 @@ export function render(host, eid) {
               <div class="pc-init__row">
                 <div class="field"><span>Iniciativa</span>
                   <span class="row-gap" style="flex-wrap:nowrap">
-                    <input type="number" inputmode="numeric" min="1" max="40" data-pc="${p.id}" value="${!isTie && p.initiative > 0 ? p.initiative : ''}" placeholder="d20+" style="width:5.5em;text-align:center;font-weight:700" ${idx === 0 ? 'autofocus' : ''}>
+                    <input type="number" inputmode="numeric" min="1" max="40" data-pc="${p.id}" value="${p.initiative > 0 ? p.initiative : ''}" placeholder="d20+" style="width:5.5em;text-align:center;font-weight:700" ${idx === 0 ? 'autofocus' : ''}>
                     <button class="btn btn-secondary btn-icon" type="button" data-rnd="${p.id}" title="Hodit d20">${DICE_ICON}</button>
                   </span>
                 </div>
-                ${
-                  withHp
-                    ? `<div class="field"><span>BV teď${p.hp_max != null ? ` (max ${p.hp_max})` : ''}</span>
-                        ${stepperHtml(`data-hp-pc="${p.id}"`, p.hp_current ?? '', { min: 0, max: p.hp_max ?? null, start: p.hp_max ?? 10, placeholder: '—', label: 'BV ' + instanceLabel(p) })}
-                      </div>`
-                    : ''
-                }
+                <div class="field"><span>BV teď${p.hp_max != null ? ` (max ${p.hp_max})` : ''}</span>
+                  ${stepperHtml(`data-hp-pc="${p.id}"`, p.hp_current ?? '', { min: 0, max: p.hp_max ?? null, start: p.hp_max ?? 10, placeholder: '—', label: 'BV ' + instanceLabel(p) })}
+                </div>
               </div>
             </div>`
           )
           .join('')}
       </div>`,
-      foot: `<button class="btn" type="button" data-ok>${withHp ? 'Potvrdit iniciativu a BV' : 'Potvrdit iniciativu'}</button>`,
+      foot: '<button class="btn" type="button" data-ok>Potvrdit iniciativu a BV</button>',
     });
     bindSteppers(m.el);
     m.el.addEventListener('click', (e) => {
@@ -336,29 +412,19 @@ export function render(host, eid) {
       if (r) m.el.querySelector(`[data-pc="${r.dataset.rnd}"]`).value = d20();
     });
     m.el.querySelector('[data-ok]').addEventListener('click', () => {
-      if (withHp) {
-        m.el.querySelectorAll('[data-hp-pc]').forEach((inp) => {
-          const v = parseInt(inp.value, 10);
-          if (!Number.isFinite(v)) return;
-          const p = getInstance(eid, Number(inp.dataset.hpPc));
-          if (!p) return;
-          // Když postava ještě nemá maximum, první zadaná hodnota ho nastaví.
-          if (v !== p.hp_current || p.hp_max == null) setHp(eid, p.id, v, p.hp_max ?? v);
-        });
-      }
+      m.el.querySelectorAll('[data-hp-pc]').forEach((inp) => {
+        const v = parseInt(inp.value, 10);
+        if (!Number.isFinite(v)) return;
+        const p = getInstance(eid, Number(inp.dataset.hpPc));
+        if (!p) return;
+        // Když postava ještě nemá maximum, první zadaná hodnota ho nastaví.
+        if (v !== p.hp_current || p.hp_max == null) setHp(eid, p.id, v, p.hp_max ?? v);
+      });
       const map = {};
       m.el.querySelectorAll('[data-pc]').forEach((inp) => (map[inp.dataset.pc] = inp.value));
-      const pending = setPcInitiatives(eid, map);
+      const groups = setPcInitiatives(eid, map);
       m.close();
-      fullRender();
-      if (pending.length) {
-        toast('Shoda iniciativ – zadej prosím nové hodnoty.', 'warn');
-        askInitiative(listInstances(eid).filter((p) => pending.includes(p.id)), true);
-      } else {
-        toast(isTie ? 'Shody iniciativ vyřešeny.' : 'Iniciativa hráčů uložena.');
-        const a = getEncounter(eid).active_instance_id;
-        if (a) scrollToCard(a);
-      }
+      afterTies(groups, 'Iniciativa hráčů uložena.');
     });
   }
 
@@ -557,9 +623,7 @@ export function render(host, eid) {
         break;
       case 'roll_all':
         if (!(await confirmDialog('Přehodit iniciativu všem (d20), včetně hrdinů?', { okText: 'Hodit' }))) return;
-        rollInitiativeAll(eid, true);
-        toast('Iniciativa byla hozena a seřazena.');
-        fullRender();
+        afterTies(rollInitiativeAll(eid, true), 'Iniciativa byla hozena a seřazena.');
         break;
       case 'sort':
         fullRender();
