@@ -7,6 +7,7 @@ export const BACKGROUNDS = ['Akolyta', 'Bylinkář', 'Dělník', 'Chovatel', 'Kr
 export const CLASSES = ['Alchymista', 'Barbar', 'Bard', 'Bojovník', 'Čaroděj', 'Černokněžník', 'Druid', 'Klerik', 'Kouzelník', 'Lovec netvorů', 'Tulák'];
 export const ALIGNMENTS = ['Zákonné dobro', 'Neutrální dobro', 'Chaotické dobro', 'Zákonná neutralita', 'Čistá neutralita', 'Chaotická neutralita', 'Zákonné zlo', 'Neutrální zlo', 'Chaotické zlo'];
 export const HIT_DICE = ['K6', 'K8', 'K10'];
+export const HIT_DICE = ['K6', 'K8', 'K10', 'K12'];
 export const SPELL_ABILITIES = ['Inteligence', 'Moudrost', 'Charisma'];
 
 export const CLASS_SPECS = {
